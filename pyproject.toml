@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "docker_glue_pyspark_multi_orchestrator"
+version = "0.1.0"
+description = "A PySpark and AWS Glue project with Kafka, Iceberg, and LocalStack"
+authors = ["Andy Wong <awong.cm@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "3.10.2"
+boto3 = "^1.18.0"
+pyspark = "3.3.0"
+
+[tool.poetry.group.dev.dependencies]
+awsglue-local-dev = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

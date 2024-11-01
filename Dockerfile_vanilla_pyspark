@@ -1,0 +1,28 @@
+FROM python:3.9-slim-buster
+
+# Install required system packages
+RUN apt-get update && apt-get install -y openjdk-11-jdk wget && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN pip install poetry
+
+# Install Spark
+ENV SPARK_VERSION=3.1.2
+ENV HADOOP_VERSION=3.2
+ENV SPARK_HOME=/opt/spark
+ENV PATH=$SPARK_HOME/bin:$PATH
+
+RUN wget -qO- "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz" | tar xvz -C /opt && \
+    ln -s /opt/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} $SPARK_HOME
+
+# Install AWS Glue and boto3
+RUN poetry add aws-glue-libs boto3
+
+WORKDIR /app
+COPY ./pyproject.toml ./poetry.lock* /app/
+
+# Install project dependencies via poetry
+RUN poetry install
+
+COPY ./src /app/src

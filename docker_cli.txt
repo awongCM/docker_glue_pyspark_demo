@@ -1,0 +1,9 @@
+docker exec -it docker_glue_pyspark_multi_orchestrator-kafka-1 kafka-topics --create --topic plain-topic --bootstrap-server kafka:9092
+docker exec -it docker_glue_pyspark_multi_orchestrator-kafka-1 kafka-console-producer --topic plain-topic --bootstrap-server kafka:9092
+
+docker exec -it docker_glue_pyspark_multi_orchestrator-kafka-1 kafka-console-consumer --bootstrap-server kafka:9092 --topic plain-topic --from-beginning
+docker exec -it docker_glue_pyspark_multi_orchestrator-kafka-1 kafka-console-consumer --bootstrap-server kafka:9092 --topic purchase-order --from-beginning
+
+docker run -it -v ./hive-site.xml:/home/glue_user/hive/conf/hive-site.xml docker_glue_pyspark_multi_orchestrator-glue-pyspark
+
+poetry env remove --all && poetry cache clear --all .

@@ -1,0 +1,11 @@
+.venv/
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/** */
+.terraform.lock.hcl
+.terraform.lock.hcl.backup
+.DS_Store
+terraform/.terraform/**
+**/metastore_db/**
+derby.log
+spark-warehouse

@@ -1,0 +1,83 @@
+## Bronze job spark setup
+
+spark = SparkSession.builder \
+ .appName("Bronze Layer Job") \
+ .master("local[*]") \
+ .config("spark.jars", "/home/glue_user/spark/jars/spark-sql-kafka-0-10_2.12-3.3.0.jar,/home/glue_user/spark/jars/kafka-clients-3.3.1.jar,"
+"/home/glue_user/spark/jars/commons-pool2-2.11.1.jar,/home/glue_user/spark/jars/iceberg-spark-runtime-3.3_2.12-0.14.0.jar") \
+ .config("spark.hadoop.fs.s3a.endpoint", "http://localstack:4566") \
+ .config("spark.hadoop.fs.s3a.access.key", "test") \
+ .config("spark.hadoop.fs.s3a.secret.key", "test") \
+ .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+ .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+ .config("spark.hadoop.fs.s3a.multiobjectdelete.enable", "false") \
+ .config("spark.hadoop.fs.s3a.fast.upload", "true") \
+ .config("spark.hadoop.fs.s3a.fast.upload.buffer", "disk") \
+ .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
+ .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+ .getOrCreate()
+
+## Bronze job spark setup end
+
+## Silver job spark setup start
+
+spark = SparkSession.builder \
+ .appName("Silver Layer Job") \
+ .master("local[*]") \
+ .config("spark.jars", "/home/glue_user/spark/jars/spark-sql-kafka-0-10_2.12-3.3.0.jar,/home/glue_user/spark/jars/kafka-clients-3.3.1.jar,"
+"/home/glue_user/spark/jars/commons-pool2-2.11.1.jar,/home/glue_user/spark/jars/iceberg-spark-runtime-3.3_2.12-0.14.0.jar") \
+ .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
+ .config("spark.sql.catalog.hadoop_catalog", "org.apache.iceberg.spark.SparkCatalog") \
+ .config("spark.sql.catalog.hadoop_catalog.type", "hadoop") \
+ .config("spark.sql.catalog.hadoop_catalog.warehouse", "s3a://iceberg/warehouse") \
+ .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.endpoint", "http://localstack:4566") \
+ .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.access.key", "test") \
+ .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.secret.key", "test") \
+ .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.connection.ssl.enabled", "false") \
+ .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.path.style.access", "true") \
+ .config("spark.hadoop.fs.s3a.endpoint", "http://localstack:4566") \
+ .config("spark.hadoop.fs.s3a.access.key", "test") \
+ .config("spark.hadoop.fs.s3a.secret.key", "test") \
+ .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+ .config("spark.hadoop.fs.s3a.multiobjectdelete.enable", "false") \
+ .config("spark.hadoop.fs.s3a.fast.upload", "true") \
+ .config("spark.hadoop.fs.s3a.fast.upload.buffer", "disk") \
+ .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
+ .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+ .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+ .config("spark.eventLog.enabled", "true") \
+ .config("spark.eventLog.dir", "/tmp/spark-events") \
+ .config("spark.history.fs.logDirectory", "/tmp/spark-events") \
+ .getOrCreate()
+
+## Silver job spark setup end
+
+## Gold job spark setup start
+
+spark = SparkSession.builder \
+ .appName("Gold Layer Job") \
+ .master("local[*]") \
+ .config("spark.jars", "/home/glue_user/spark/jars/spark-sql-kafka-0-10_2.12-3.3.0.jar,/home/glue_user/spark/jars/kafka-clients-3.3.1.jar,"
+"/home/glue_user/spark/jars/commons-pool2-2.11.1.jar,/home/glue_user/spark/jars/iceberg-spark-runtime-3.3_2.12-0.14.0.jar") \
+ .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
+ .config("spark.sql.catalog.hadoop_catalog", "org.apache.iceberg.spark.SparkCatalog") \
+ .config("spark.sql.catalog.hadoop_catalog.type", "hadoop") \
+ .config("spark.sql.catalog.hadoop_catalog.warehouse", "s3a://iceberg/warehouse") \
+ .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.endpoint", "http://localstack:4566") \
+ .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.access.key", "test") \
+ .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.secret.key", "test") \
+ .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.connection.ssl.enabled", "false") \
+ .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.path.style.access", "true") \
+ .config("spark.hadoop.fs.s3a.endpoint", "http://localstack:4566") \
+ .config("spark.hadoop.fs.s3a.access.key", "test") \
+ .config("spark.hadoop.fs.s3a.secret.key", "test") \
+ .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+ .config("spark.hadoop.fs.s3a.multiobjectdelete.enable", "false") \
+ .config("spark.hadoop.fs.s3a.fast.upload", "true") \
+ .config("spark.hadoop.fs.s3a.fast.upload.buffer", "disk") \
+ .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
+ .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+ .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+ .getOrCreate()
+
+## Gold job spark setup end
