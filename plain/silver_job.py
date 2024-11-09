@@ -10,7 +10,7 @@ bucket_name = "bronze-bucket"
 output_s3_bucket = f's3a://{bucket_name}/plain'
 
 s3_endpoint_url = "http://localstack:4566"
-namespace_catalog = "hadoop_catalog"
+namespace_catalog = "local_catalog"
 catalog_name = "local_catalog_plain"
 table_name = "silver_table"
 full_table_name = f"`{namespace_catalog}`.`{catalog_name}`.`{table_name}`"
@@ -86,14 +86,14 @@ def main():
         .appName("Silver Layer Job") \
         .master("local[*]") \
         .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
-        .config("spark.sql.catalog.hadoop_catalog", "org.apache.iceberg.spark.SparkCatalog") \
-        .config("spark.sql.catalog.hadoop_catalog.type", "hadoop") \
-        .config("spark.sql.catalog.hadoop_catalog.warehouse", "s3a://iceberg/warehouse") \
-        .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.endpoint", "http://localstack:4566") \
-        .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.access.key", "test") \
-        .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.secret.key", "test") \
-        .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.connection.ssl.enabled", "false") \
-        .config("spark.sql.catalog.hadoop_catalog.hadoop.fs.s3a.path.style.access", "true") \
+        .config("spark.sql.catalog.local_catalog", "org.apache.iceberg.spark.SparkCatalog") \
+        .config("spark.sql.catalog.local_catalog.type", "hadoop") \
+        .config("spark.sql.catalog.local_catalog.warehouse", "s3a://iceberg/warehouse") \
+        .config("spark.sql.catalog.local_catalog.hadoop.fs.s3a.endpoint", "http://localstack:4566") \
+        .config("spark.sql.catalog.local_catalog.hadoop.fs.s3a.access.key", "test") \
+        .config("spark.sql.catalog.local_catalog.hadoop.fs.s3a.secret.key", "test") \
+        .config("spark.sql.catalog.local_catalog.hadoop.fs.s3a.connection.ssl.enabled", "false") \
+        .config("spark.sql.catalog.local_catalog.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.endpoint", "http://localstack:4566") \
         .config("spark.hadoop.fs.s3a.access.key", "test") \
         .config("spark.hadoop.fs.s3a.secret.key", "test") \

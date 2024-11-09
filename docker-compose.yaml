@@ -2,7 +2,11 @@ version: '3'
 
 services:
   glue-pyspark:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: glue-pyspark-poc
+    image: my-glue-pyspark
     volumes:
       # - .venv:/app/.venv
       - ./plain:/app/plain
@@ -32,6 +36,25 @@ services:
       - localstack
       - kafka-net
 
+  jupyterlab:
+    image: my-glue-pyspark
+    container_name: jupterlab-poc
+    environment:
+      AWS_ACCESS_KEY_ID: "test"
+      AWS_SECRET_ACCESS_KEY: "test"
+      AWS_REGION: "us-east-1"
+      DISABLE_SSL: true
+    command: ["/home/glue_user/jupyter/jupyter_start.sh", "--ip=0.0.0.0", "--no-browser", "--allow-root", "--NotebookApp.token=test", "--NotebookApp.allow_origin=*", "--NotebookApp.base_url=http://localhost:8888", "--NotebookApp.token_expire_in=36"]
+    ports:
+      - 8888:8888
+    depends_on:
+      - glue-pyspark
+    volumes_from:
+      - glue-pyspark
+    networks:
+      - localstack
+      - kafka-net
+  
   localstack:
     image: localstack/localstack
     environment:

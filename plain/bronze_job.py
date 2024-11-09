@@ -136,6 +136,8 @@ def main():
 
     query = parsed_df.writeStream \
         .foreachBatch(process_batch) \
+        .format("parquet") \
+        .option("path",output_s3_bucket) \
         .option("checkpointLocation", "/tmp/spark_checkpoints/bronze_layer/plain") \
         .trigger(processingTime="500 milliseconds") \
         .outputMode("append") \

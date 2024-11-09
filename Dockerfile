@@ -15,6 +15,12 @@ USER root
 # Upgrade pip to the latest version
 RUN pip3 install --upgrade pip
 
+# Install Jupyterlab
+RUN pip3 install jupyterlab
+
+# Expose Jupyter port
+EXPOSE 8888
+
 # Install Poetry for dependency management
 RUN pip3 install poetry
 

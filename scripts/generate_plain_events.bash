@@ -10,7 +10,7 @@ CONTAINER_NAME="docker_glue_pyspark_multi_orchestrator-kafka-1"  # Replace with 
 generate_event() {
   id=$((RANDOM % 100 + 1))
   name=$(cat /usr/share/dict/words | shuf -n 1 | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
-  amount=$((RANDOM % 201))sgyf
+  amount=$((RANDOM % 201))
   echo "{\"id\": $id, \"name\": \"$name\", \"amount\": $amount}"
 }
 
