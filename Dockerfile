@@ -42,9 +42,6 @@ ADD https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.3_
 # ADD https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-core/0.14.0/iceberg-core-0.14.0.jar /home/glue_user/spark/jars/
 
 
-# for checkpointing bronze hadoop
-# RUN mkdir -p /tmp/spark-staging
-
 # To ensure poetry shell will launch appropriately inside docker
 ENV SHELL /bin/bash
 
