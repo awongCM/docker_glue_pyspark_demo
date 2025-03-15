@@ -22,7 +22,7 @@ RUN pip3 install jupyterlab
 EXPOSE 8888
 
 # Install Poetry for dependency management
-RUN pip3 install poetry
+RUN pip3 install poetry==1.8.5
 
 # Add Kafka JAR for structured streaming
 ADD https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.3.0/spark-sql-kafka-0-10_2.12-3.3.0.jar /home/glue_user/spark/jars/
