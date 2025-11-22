@@ -41,7 +41,7 @@ This setup is ideal for:
 2. Set up AWS resources:
 
    ```bash
-   cd terraform && terraform apply -auto-approve
+   cd terraform && tflocal apply -auto-approve
    ```
 
 3. Run a sample pipeline:
