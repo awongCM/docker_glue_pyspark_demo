@@ -53,7 +53,7 @@ This setup is ideal for:
 ## What's Inside
 
 - **Two example pipelines**: Simple demo and realistic purchase order processing
-- **AWS Glue 5.0 runtime**: Same environment as production AWS
+- **AWS Glue 4.0 runtime**: Same environment as AWS actual Glue Cloud Environment
 - **Apache Iceberg**: Modern table format for data lakes
 - **Kafka**: For streaming data ingestion
 - **LocalStack**: Local AWS cloud simulation
