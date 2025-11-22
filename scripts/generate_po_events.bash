@@ -4,7 +4,7 @@ set -ex  # Exit on error, print commands
 # Kafka settings
 TOPIC="purchase-order"
 BOOTSTRAP_SERVERS="kafka:9092"
-CONTAINER_NAME="docker_glue_pyspark_multi_orchestrator-kafka-1"
+CONTAINER_NAME="docker_glue_pyspark_demo-kafka-1"
 NUM_EVENTS=$1  # Number of events to generate, passed as a parameter
 
 if [ -z "$NUM_EVENTS" ]; then

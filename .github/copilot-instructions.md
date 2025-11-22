@@ -44,9 +44,9 @@ Local AWS Glue development environment simulating PySpark/Glue jobs with Kafka, 
 cd terraform && terraform init && terraform apply -auto-approve
 
 # Create Kafka topics
-docker exec -it docker_glue_pyspark_multi_orchestrator-kafka-1 \
+docker exec -it docker_glue_pyspark_demo-kafka-1 \
   kafka-topics --create --topic plain-topic --bootstrap-server kafka:9092
-docker exec -it docker_glue_pyspark_multi_orchestrator-kafka-1 \
+docker exec -it docker_glue_pyspark_demo-kafka-1 \
   kafka-topics --create --topic purchase-order --bootstrap-server kafka:9092
 ```
 
@@ -86,7 +86,7 @@ aws --endpoint-url=http://localhost:4566 logs tail /aws/glue/jobs/pyspark-logs -
 aws --endpoint-url=http://localhost:4566 s3 ls s3://bronze-bucket/ --recursive
 
 # Consume Kafka messages
-docker exec -it docker_glue_pyspark_multi_orchestrator-kafka-1 \
+docker exec -it docker_glue_pyspark_demo-kafka-1 \
   kafka-console-consumer --bootstrap-server kafka:9092 --topic plain-topic --from-beginning
 
 # Query DynamoDB tables

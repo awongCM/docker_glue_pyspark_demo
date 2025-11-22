@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "docker_glue_pyspark_multi_orchestrator"
+name = "docker_glue_pyspark_demo"
 version = "0.1.0"
 description = "A PySpark and AWS Glue project with Kafka, Iceberg, and LocalStack"
 authors = ["Andy Wong <awong.cm@gmail.com>"]

@@ -8,7 +8,7 @@ import names
 # Kafka settings
 TOPIC = "plain-topic"
 BOOTSTRAP_SERVERS = "kafka:9092"
-CONTAINER_NAME = "docker_glue_pyspark_multi_orchestrator-kafka-1"  # Replace with your actual container name
+CONTAINER_NAME = "docker_glue_pyspark_demo-kafka-1"  # Replace with your actual container name
 
 # Function to generate a random JSON event
 def generate_event():

@@ -9,7 +9,7 @@ import names
 # Kafka settings
 TOPIC = "purchase-order"
 BOOTSTRAP_SERVERS = "kafka:9092"
-CONTAINER_NAME = "docker_glue_pyspark_multi_orchestrator-kafka-1"
+CONTAINER_NAME = "docker_glue_pyspark_demo-kafka-1"
 
 def generate_purchase_order():
     name = names.get_full_name()
