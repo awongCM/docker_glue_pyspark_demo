@@ -20,22 +20,6 @@ full_table_name = f"`{namespace_catalog}`.`{catalog_name}`.`{table_name}`"
 log_group_name = 'pyspark-po-logs'
 log_stream_name = 'silver-job-po-stream'
 
-
-# Create the S3 bucket in LocalStack
-# def create_s3_bucket(bucket_name, endpoint_url=None):
-#     s3_client = boto3.client('s3', endpoint_url=endpoint_url)
-#     try:
-#         s3_client.create_bucket(Bucket=bucket_name)
-#         print(f'Bucket {bucket_name} created successfully.')
-
-#         response = s3_client.list_buckets()
-#         print("Available buckets:", response['Buckets'])
-        
-#     except s3_client.exceptions.BucketAlreadyOwnedByYou:
-#         print(f"Bucket {bucket_name} already exists.")
-#     except Exception as e:
-#         print(f"Error creating bucket {bucket_name}: {e}")
-
 def create_database_if_not_exists(spark, catalog_name):
     # Create the database if it doesn't exist
     spark.sql(f"CREATE DATABASE IF NOT EXISTS {catalog_name}")

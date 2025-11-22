@@ -1,8 +1,8 @@
-version: '3'
+version: "3"
 
 services:
   glue-pyspark:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     container_name: glue-pyspark-poc
@@ -19,7 +19,7 @@ services:
       AWS_REGION: "us-east-1"
       ### Settings to enable logging of spark history logs
       # SPARK_HISTORY_OPTS: "-Dspark.history.ui.port=18080 -Dspark.history.retainedApplications=5 -Dspark.history.fs.logDirectory=/tmp/spark-events"
-    stdin_open: true  # Keep STDIN open
+    stdin_open: true # Keep STDIN open
     tty: true
     depends_on:
       - kafka
@@ -37,7 +37,17 @@ services:
       AWS_SECRET_ACCESS_KEY: "test"
       AWS_REGION: "us-east-1"
       DISABLE_SSL: true
-    command: ["/home/glue_user/jupyter/jupyter_start.sh", "--ip=0.0.0.0", "--no-browser", "--allow-root", "--NotebookApp.token=test", "--NotebookApp.allow_origin=*", "--NotebookApp.base_url=http://localhost:8888", "--NotebookApp.token_expire_in=36"]
+    command:
+      [
+        "/home/glue_user/jupyter/jupyter_start.sh",
+        "--ip=0.0.0.0",
+        "--no-browser",
+        "--allow-root",
+        "--NotebookApp.token=test",
+        "--NotebookApp.allow_origin=*",
+        "--NotebookApp.base_url=http://localhost:8888",
+        "--NotebookApp.token_expire_in=36",
+      ]
     ports:
       - 8888:8888
     depends_on:
@@ -47,7 +57,7 @@ services:
     networks:
       - localstack
       - kafka-net
-  
+
   localstack:
     image: localstack/localstack
     environment:
@@ -63,7 +73,7 @@ services:
       - localstack
 
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:7.4.0 # or 7.3.0
     ports:
       - 29092:29092
       - 9092:9092

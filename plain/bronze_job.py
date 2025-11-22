@@ -21,22 +21,6 @@ output_s3_bucket = f's3a://{bucket_name}/plain'
 # Log Group and Log Stream
 log_group_name = 'pyspark-logs'
 log_stream_name = 'bronze-job-stream'
-    
-
-# # Create the S3 bucket in LocalStack
-# def create_s3_bucket(bucket_name, endpoint_url=None):
-#     s3_client = boto3.client('s3', endpoint_url=endpoint_url)
-#     try:
-#         s3_client.create_bucket(Bucket=bucket_name)
-#         print(f'Bucket {bucket_name} created successfully.')
-
-#         response = s3_client.list_buckets()
-#         print("Available buckets:", response['Buckets'])
-        
-#     except s3_client.exceptions.BucketAlreadyOwnedByYou:
-#         print(f"Bucket {bucket_name} already exists.")
-#     except Exception as e:
-#         print(f"Error creating bucket {bucket_name}: {e}")
 
 def log_logging_events(message, logs_client):
     log_event = {
