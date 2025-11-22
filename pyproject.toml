@@ -8,10 +8,12 @@ package-mode = true
 [tool.poetry.dependencies]
 python = "3.10.2"
 boto3 = "^1.18.0"
-pyspark = "3.3.0"
 
 [tool.poetry.group.dev.dependencies]
-awsglue-local-dev = "^1.0.0"
+black = "^23.1.0"
+flake8 = "^6.0.0"
+isort = "^5.10.1"
+pyspark = "3.3.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
