@@ -11,6 +11,11 @@ services:
       # - .venv:/app/.venv
       - ./plain:/app/plain
       - ./purchase_order:/app/purchase_order
+      - ./tests:/app/tests
+      - ./scripts:/app/scripts
+      - ./pytest.ini:/app/pytest.ini
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./poetry.lock:/app/poetry.lock
     ports:
       - "18080:18080"
     environment:

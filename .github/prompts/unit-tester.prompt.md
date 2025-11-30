@@ -19,7 +19,7 @@ import pytest
 def is_valid(input_str: str) -> bool:
     return bool(input_str) and input_str.isalpha()
 
-def test_should_return_true_When_input_is_valid():
+def test_should_return_true_when_input_is_valid():
     """Arrange-Act-Assert: valid alphabetical input should be true."""
     # Arrange
     input_str = "ValidInput"
@@ -33,7 +33,7 @@ def test_should_return_true_When_input_is_valid():
 
 ## Naming Convention
 
-- Name tests as `should_ExpectedBehavior_When_StateUnderTest`
+- Name tests as `should_expected_behavior_when_state_under_test`
 - Use clear, descriptive names that document the test's purpose
 - For pytest, use snake_case function names
 
