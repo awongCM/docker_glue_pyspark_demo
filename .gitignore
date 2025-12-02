@@ -9,3 +9,14 @@ terraform/.terraform/**
 **/metastore_db/**
 derby.log
 spark-warehouse
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+.tox/
+.hypothesis/
