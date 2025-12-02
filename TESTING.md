@@ -7,6 +7,7 @@
 ## Setup
 
 1. **Start the Docker containers:**
+
    ```bash
    ./scripts/start-containers.bash
    ```
@@ -90,11 +91,13 @@ exit
 ## Understanding Test Output
 
 ### Successful Test
+
 ```
 tests/plain/test_bronze_job.py::TestBronzeJobLogging::test_should_log_message_to_cloudwatch_when_valid_message_provided PASSED
 ```
 
 ### Failed Test
+
 ```
 tests/plain/test_silver_job.py::TestSilverJobDataTransformation::test_should_filter_records_above_threshold_when_cleaning_data FAILED
 
@@ -103,6 +106,7 @@ Expected 3 records after filtering, got 4
 ```
 
 ### Coverage Summary
+
 ```
 Name                         Stmts   Miss  Cover   Missing
 ----------------------------------------------------------
@@ -131,6 +135,7 @@ tests/
 ## What's Tested
 
 ### Plain Pipeline
+
 - ✅ Kafka message parsing with schema validation
 - ✅ S3 read/write configuration
 - ✅ Data filtering (amount < 100)
@@ -139,6 +144,7 @@ tests/
 - ✅ CloudWatch logging
 
 ### Purchase Order Pipeline
+
 - ✅ Nested schema handling (contact_info, items array)
 - ✅ Array explosion (denormalization)
 - ✅ Weight quantity filtering (> 5000)
@@ -168,10 +174,10 @@ def test_should_do_something_when_condition_met(spark_session, plain_sample_data
     """Clear description of what the test validates."""
     # Arrange
     df = spark_session.createDataFrame(plain_sample_data, schema=plain_schema)
-    
+
     # Act
     result = df.filter("amount > 50").collect()
-    
+
     # Assert
     assert len(result) == 2
 ```
@@ -179,19 +185,23 @@ def test_should_do_something_when_condition_met(spark_session, plain_sample_data
 ## Troubleshooting
 
 ### "ModuleNotFoundError: No module named 'awsglue'"
+
 **This is the most common issue!**
 
 ❌ **Wrong**: Running tests on host machine
+
 ```bash
 poetry run pytest  # Will fail!
 ```
 
 ✅ **Correct**: Running tests inside Docker container
+
 ```bash
 ./scripts/run-tests-docker.bash all
 ```
 
 ### Container not running
+
 ```bash
 # Check if container is up
 docker ps | grep glue-pyspark-poc
@@ -201,6 +211,7 @@ docker ps | grep glue-pyspark-poc
 ```
 
 ### First time setup inside container
+
 ```bash
 # Open shell in container
 ./scripts/run-tests-docker.bash shell
@@ -210,17 +221,20 @@ poetry install
 ```
 
 ### Tests are slow
+
 ```bash
 # Use fast mode (skips coverage)
 ./scripts/run-tests-docker.bash fast
 ```
 
 ### Clean test cache
+
 ```bash
 ./scripts/run-tests-docker.bash clean
 ```
 
 ### Debug specific test
+
 ```bash
 # Open shell for interactive debugging
 ./scripts/run-tests-docker.bash shell

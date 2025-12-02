@@ -3,12 +3,15 @@
 ## ✅ What Was Changed
 
 ### 1. Created Docker Test Runner Script
+
 - **File**: `scripts/run-tests-docker.bash` (executable)
 - **Purpose**: Run tests inside the `glue-pyspark-poc` container where `awsglue` is available
 - **Commands**: `all`, `plain`, `po`, `bronze`, `silver`, `gold`, `fast`, `coverage`, `shell`, `clean`
 
 ### 2. Updated docker-compose.yaml
+
 Added volume mounts to sync test files into the container:
+
 ```yaml
 volumes:
   - ./tests:/app/tests
@@ -19,6 +22,7 @@ volumes:
 ```
 
 ### 3. Updated Documentation
+
 - `TESTING.md` - Emphasized Docker requirement, updated all commands
 - `tests/README.md` - Added Docker-first approach, updated troubleshooting
 - `TEST_QUICK_REFERENCE.md` - New quick reference card for Docker testing
@@ -27,6 +31,7 @@ volumes:
 ## 🚀 How to Use
 
 ### Step 1: Restart Containers (Required)
+
 Since we modified `docker-compose.yaml`, restart to pick up volume changes:
 
 ```bash
@@ -41,6 +46,7 @@ docker-compose up -d glue-pyspark
 ```
 
 ### Step 2: First-Time Setup Inside Container
+
 ```bash
 # Open shell in container
 ./scripts/run-tests-docker.bash shell
@@ -57,6 +63,7 @@ exit
 ```
 
 ### Step 3: Run Tests
+
 ```bash
 # Run all tests
 ./scripts/run-tests-docker.bash all
@@ -70,6 +77,7 @@ exit
 ## 📋 Command Reference
 
 ### Docker Test Runner (PRIMARY)
+
 ```bash
 ./scripts/run-tests-docker.bash all        # All tests with coverage
 ./scripts/run-tests-docker.bash plain      # Plain pipeline only
@@ -85,6 +93,7 @@ exit
 ```
 
 ### Manual Docker Commands (ALTERNATIVE)
+
 ```bash
 # Open shell
 docker exec -it glue-pyspark-poc bash
@@ -99,24 +108,28 @@ poetry run pytest tests/plain/test_bronze_job.py -v
 ## 🔍 Verification Steps
 
 ### 1. Verify Container is Running
+
 ```bash
 docker ps | grep glue-pyspark-poc
 # Should show: glue-pyspark-poc   Up   ...
 ```
 
 ### 2. Verify Volumes are Mounted
+
 ```bash
 docker exec -it glue-pyspark-poc ls -la /app/tests
 # Should show: test files and directories
 ```
 
 ### 3. Verify Poetry is Available
+
 ```bash
 docker exec -it glue-pyspark-poc poetry --version
 # Should show: Poetry (version 1.x.x)
 ```
 
 ### 4. Run a Quick Test
+
 ```bash
 ./scripts/run-tests-docker.bash fast
 # Should run tests successfully
@@ -125,12 +138,15 @@ docker exec -it glue-pyspark-poc poetry --version
 ## ⚠️ Important Notes
 
 ### Why Docker is Required
+
 - Tests import from `awsglue.context` and `awsglue.dynamicframe`
 - These modules are only available in the AWS Glue Docker image
 - Running tests locally will fail with `ModuleNotFoundError: No module named 'awsglue'`
 
 ### Volume Mounts
+
 The following directories/files are synced from host → container:
+
 - `tests/` - All test files
 - `scripts/` - Test runner scripts
 - `pytest.ini` - Pytest configuration
@@ -140,6 +156,7 @@ The following directories/files are synced from host → container:
 Any changes to these files on the host are immediately available in the container (no rebuild needed).
 
 ### Container Persistence
+
 - Test artifacts (`htmlcov/`, `.coverage`) are created inside the container
 - Due to volume mounts, they're also visible on the host machine
 - Coverage reports can be opened from the host: `open htmlcov/index.html`
@@ -147,6 +164,7 @@ Any changes to these files on the host are immediately available in the containe
 ## 🐛 Troubleshooting
 
 ### "Container 'glue-pyspark-poc' is not running"
+
 ```bash
 ./scripts/start-containers.bash
 # Wait for containers to be healthy
@@ -154,6 +172,7 @@ docker ps | grep glue-pyspark-poc
 ```
 
 ### "poetry: command not found" inside container
+
 ```bash
 # Rebuild the container
 docker-compose build glue-pyspark
@@ -161,6 +180,7 @@ docker-compose up -d glue-pyspark
 ```
 
 ### "No module named 'pytest'" inside container
+
 ```bash
 # Install dependencies
 ./scripts/run-tests-docker.bash shell
@@ -170,7 +190,9 @@ exit
 ```
 
 ### Tests fail with "ModuleNotFoundError: No module named 'awsglue'"
+
 This means you're running tests on the host instead of in the container.
+
 ```bash
 # Wrong
 poetry run pytest
@@ -180,7 +202,9 @@ poetry run pytest
 ```
 
 ### Changes to test files not reflected
+
 If you modified test files but don't see changes:
+
 ```bash
 # Verify volume mount
 docker exec -it glue-pyspark-poc ls -la /app/tests
@@ -201,11 +225,13 @@ docker-compose up -d glue-pyspark
 ## 🎯 Next Steps
 
 1. **Restart containers** to pick up new volume mounts:
+
    ```bash
    docker-compose down && ./scripts/start-containers.bash
    ```
 
 2. **Install dependencies** inside container (first time):
+
    ```bash
    ./scripts/run-tests-docker.bash shell
    poetry install
@@ -213,6 +239,7 @@ docker-compose up -d glue-pyspark
    ```
 
 3. **Run tests**:
+
    ```bash
    ./scripts/run-tests-docker.bash all
    ```

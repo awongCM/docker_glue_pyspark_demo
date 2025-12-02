@@ -3,6 +3,7 @@
 ## ✅ Completed Tasks
 
 ### 1. Project Configuration
+
 - ✅ Updated `pyproject.toml` with test dependencies:
   - pytest ^7.4.0
   - pytest-mock ^3.11.1
@@ -10,11 +11,11 @@
   - moto[s3,dynamodb,logs] ^4.2.0
 
 ### 2. Test Infrastructure
+
 - ✅ Created `pytest.ini` with configuration:
   - Test discovery paths
   - Coverage settings
   - Custom markers (unit, integration, slow)
-  
 - ✅ Created `tests/conftest.py` with shared fixtures:
   - `spark_session` - Local Spark for testing
   - `mock_boto3_logs_client` - CloudWatch Logs mock
@@ -27,36 +28,32 @@
 ### 3. Plain Pipeline Tests (tests/plain/)
 
 #### `test_bronze_job.py` - 4 Test Classes
+
 - ✅ TestBronzeJobLogging (2 tests)
   - CloudWatch message logging
   - JSON-serializable message handling
-  
 - ✅ TestBronzeJobSchema (2 tests)
   - Schema field validation
   - Nullable field checks
-  
 - ✅ TestBronzeJobDataProcessing (2 tests)
   - Non-empty DataFrame processing
   - Empty DataFrame handling
-  
 - ✅ TestBronzeJobConfiguration (3 tests)
   - Kafka topic validation
   - S3 path configuration
   - LocalStack endpoint validation
 
 #### `test_silver_job.py` - 4 Test Classes
+
 - ✅ TestSilverJobLogging (1 test)
   - CloudWatch logging validation
-  
 - ✅ TestSilverJobConfiguration (3 tests)
   - S3 bronze path validation
   - Iceberg catalog configuration
   - LocalStack endpoint validation
-  
 - ✅ TestSilverJobDatabaseOperations (2 tests)
   - Database creation
   - Table creation with schema
-  
 - ✅ TestSilverJobDataTransformation (5 tests)
   - Record filtering (amount < 100)
   - Column preservation
@@ -65,19 +62,17 @@
   - Filter inclusivity
 
 #### `test_gold_job.py` - 4 Test Classes
+
 - ✅ TestGoldJobLogging (1 test)
   - CloudWatch logging validation
-  
 - ✅ TestGoldJobConfiguration (3 tests)
   - Iceberg table reference validation
   - DynamoDB table naming
   - LocalStack endpoint validation
-  
 - ✅ TestGoldJobDynamoDBOperations (3 tests)
   - DynamoDB item formatting
   - Batch writing
   - Type conversion (int to string)
-  
 - ✅ TestGoldJobDataIntegrity (6 tests)
   - Empty dataset handling
   - Data type preservation
@@ -88,40 +83,36 @@
 ### 4. Purchase Order Pipeline Tests (tests/purchase_order/)
 
 #### `test_bronze_job.py` - 4 Test Classes
+
 - ✅ TestPurchaseOrderBronzeJobLogging (1 test)
   - CloudWatch logging validation
-  
 - ✅ TestPurchaseOrderBronzeJobSchema (5 tests)
   - Top-level field validation
   - Nested contact_info structure
   - Items array validation
   - Numeric type validation (DoubleType)
   - DateType validation
-  
 - ✅ TestPurchaseOrderBronzeJobConfiguration (4 tests)
   - Kafka topic validation
   - S3 path configuration
   - CloudWatch log group separation
   - LocalStack endpoint validation
-  
 - ✅ TestPurchaseOrderBronzeJobDataProcessing (3 tests)
   - Nested contact_info handling
   - Array items processing
   - Monetary precision preservation
 
 #### `test_silver_job.py` - 4 Test Classes
+
 - ✅ TestPurchaseOrderSilverJobLogging (1 test)
   - CloudWatch logging validation
-  
 - ✅ TestPurchaseOrderSilverJobConfiguration (3 tests)
   - S3 bronze path validation
   - Iceberg catalog configuration
   - CloudWatch log stream validation
-  
 - ✅ TestPurchaseOrderSilverJobDatabaseOperations (2 tests)
   - Database creation
   - Flattened table schema validation
-  
 - ✅ TestPurchaseOrderSilverJobDataTransformation (6 tests)
   - Items array explosion
   - Contact_info flattening
@@ -131,24 +122,21 @@
   - Boundary value testing
 
 #### `test_gold_job.py` - 4 Test Classes
+
 - ✅ TestPurchaseOrderGoldJobLogging (1 test)
   - CloudWatch logging validation
-  
 - ✅ TestPurchaseOrderGoldJobConfiguration (3 tests)
   - Iceberg table reference validation
   - DynamoDB table naming
   - CloudWatch log stream validation
-  
 - ✅ TestPurchaseOrderGoldJobAggregation (3 tests)
   - Email-based aggregation
   - Sum and average calculations
   - Single order per customer handling
-  
 - ✅ TestPurchaseOrderGoldJobDynamoDBOperations (3 tests)
   - Aggregated item formatting
   - Decimal conversion for monetary values
   - Batch writing
-  
 - ✅ TestPurchaseOrderGoldJobDataIntegrity (4 tests)
   - Empty dataset handling
   - Special characters in email
@@ -156,6 +144,7 @@
   - Zero total handling
 
 ### 5. Documentation & Tooling
+
 - ✅ Created `tests/README.md` - Comprehensive test suite documentation
 - ✅ Created `TESTING.md` - Quick start guide for developers
 - ✅ Created `scripts/run-tests.bash` - Convenient test runner script
@@ -164,7 +153,9 @@
 ## Test Statistics
 
 ### Total Test Count: ~83 Tests
+
 - **Plain Pipeline**: ~41 tests
+
   - Bronze: 9 tests
   - Silver: 11 tests
   - Gold: 13 tests
@@ -175,6 +166,7 @@
   - Gold: 15 tests
 
 ### Test Categories
+
 - All tests marked with `@pytest.mark.unit`
 - Zero external dependencies required
 - All tests follow AAA (Arrange-Act-Assert) pattern
@@ -183,6 +175,7 @@
 ## Test Coverage Areas
 
 ### Configuration Testing
+
 ✅ Kafka topics and bootstrap servers
 ✅ S3 bucket paths and protocols (s3a://)
 ✅ Iceberg catalog configurations
@@ -191,12 +184,14 @@
 ✅ LocalStack endpoint URLs
 
 ### Schema Testing
+
 ✅ Simple schema (plain: id, name, amount)
 ✅ Nested schema (purchase_order: contact_info)
 ✅ Array schema (purchase_order: items)
 ✅ Data type validation (Integer, String, Double, Date)
 
 ### Data Transformation Testing
+
 ✅ Filtering operations (amount < 100, weight > 5000)
 ✅ Array explosion (denormalization)
 ✅ Nested field flattening
@@ -204,12 +199,14 @@
 ✅ Aggregation (sum, avg by email)
 
 ### AWS Integration Testing (Mocked)
+
 ✅ CloudWatch Logs put_log_events
 ✅ S3 read/write operations
 ✅ DynamoDB put_item operations
 ✅ Boto3 client configurations
 
 ### Edge Cases & Boundaries
+
 ✅ Empty DataFrames
 ✅ Boundary values (99 vs 100, 5000 vs 5001)
 ✅ Special characters (names, emails)
@@ -246,11 +243,13 @@ docker_glue_pyspark_demo/
 ## How to Use
 
 ### 1. Install Dependencies
+
 ```bash
 poetry install
 ```
 
 ### 2. Run Tests
+
 ```bash
 # All tests
 ./scripts/run-tests.bash all
@@ -269,6 +268,7 @@ poetry install
 ```
 
 ### 3. Direct Poetry Commands
+
 ```bash
 # All tests
 poetry run pytest

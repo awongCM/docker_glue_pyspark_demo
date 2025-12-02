@@ -43,6 +43,7 @@ Example: `test_should_filter_records_above_threshold_when_cleaning_data`
 ### Prerequisites
 
 1. **Start Docker containers:**
+
    ```bash
    ./scripts/start-containers.bash
    ```
@@ -112,6 +113,7 @@ poetry run pytest tests/plain/test_gold_job.py::TestGoldJobDynamoDBOperations::t
 ```
 
 ### Run Tests by Markers
+
 ### Generate Coverage Reports
 
 ```bash
@@ -124,6 +126,7 @@ open htmlcov/index.html
 # Manual approach
 docker exec -it glue-pyspark-poc bash -c "cd /app && poetry run pytest --cov=plain --cov=purchase_order --cov-report=html --cov-report=term"
 ```
+
 ### Generate Coverage Reports
 
 ```bash
@@ -142,12 +145,14 @@ open htmlcov/index.html
 ### Plain Pipeline Tests
 
 #### `test_bronze_job.py`
+
 - CloudWatch logging functionality
 - Kafka schema validation (id, name, amount)
 - Configuration constants (topics, S3 paths, endpoints)
 - Data processing logic for non-empty and empty batches
 
 #### `test_silver_job.py`
+
 - CloudWatch logging
 - S3 and Iceberg catalog configuration
 - Database and table creation logic
@@ -155,6 +160,7 @@ open htmlcov/index.html
 - Column preservation and boundary value handling
 
 #### `test_gold_job.py`
+
 - CloudWatch logging
 - Iceberg table reading configuration
 - DynamoDB item formatting (type annotations: N, S)
@@ -164,6 +170,7 @@ open htmlcov/index.html
 ### Purchase Order Pipeline Tests
 
 #### `test_bronze_job.py`
+
 - CloudWatch logging functionality
 - Complex nested schema validation (contact_info, items array)
 - Field type validation (DoubleType for monetary, DateType for dates)
@@ -171,6 +178,7 @@ open htmlcov/index.html
 - Monetary precision preservation
 
 #### `test_silver_job.py`
+
 - CloudWatch logging
 - Iceberg catalog configuration (hadoop_catalog)
 - Flattened schema validation (12 columns)
@@ -180,6 +188,7 @@ open htmlcov/index.html
 - Boundary value testing
 
 #### `test_gold_job.py`
+
 - CloudWatch logging
 - Aggregation by customer email
 - Sum and average calculations
@@ -204,6 +213,7 @@ open htmlcov/index.html
 ### AWS Services
 
 Tests use `moto` library for mocking AWS services (S3, DynamoDB, CloudWatch Logs) to avoid:
+
 - External dependencies during testing
 - Network calls to LocalStack or AWS
 - Complex test environment setup
@@ -211,6 +221,7 @@ Tests use `moto` library for mocking AWS services (S3, DynamoDB, CloudWatch Logs
 ### PySpark/Glue
 
 Tests isolate transformation logic from streaming and I/O:
+
 - Use local SparkSession for DataFrame operations
 - Mock GlueContext and DynamicFrame where necessary
 - Focus on testing business logic, not infrastructure
@@ -242,11 +253,11 @@ def test_should_filter_records_above_threshold_when_cleaning_data(
     # Arrange
     df = spark_session.createDataFrame(plain_sample_data, schema=plain_schema)
     threshold = 100
-    
+
     # Act
     cleaned_df = df.filter(f"amount < {threshold}")
     result = cleaned_df.collect()
-    
+
     # Assert
     assert len(result) == 3
     assert all(row['amount'] < threshold for row in result)
@@ -262,10 +273,10 @@ def test_should_log_message_to_cloudwatch_when_valid_message_provided(
     # Arrange
     from plain.bronze_job import log_logging_events
     test_message = "Test log"
-    
+
     # Act
     log_logging_events(test_message, mock_boto3_logs_client)
-    
+
     # Assert
     mock_boto3_logs_client.put_log_events.assert_called_once()
     call_args = mock_boto3_logs_client.put_log_events.call_args
@@ -279,14 +290,14 @@ def test_should_format_item_correctly_when_writing_to_dynamodb(self):
     """Test DynamoDB item structure."""
     # Arrange
     record = {"id": 1, "name": "Alice", "amount": 50}
-    
+
     # Act
     item = {
         'id': {'N': str(record['id'])},
         'name': {'S': record['name']},
         'amount': {'N': str(record['amount'])}
     }
-    
+
     # Assert
     assert item['id'] == {'N': '1'}
     assert item['name'] == {'S': 'Alice'}
@@ -314,6 +325,7 @@ To integrate with CI/CD pipelines:
 **Problem**: Tests fail with import errors when run locally.
 
 **Solution**: Tests must run inside the Docker container where AWS Glue libraries are installed.
+
 ```bash
 # Wrong - running on host machine
 poetry run pytest
@@ -327,6 +339,7 @@ poetry run pytest
 **Problem**: Test runner reports container is not running.
 
 **Solution**: Start the containers first.
+
 ```bash
 ./scripts/start-containers.bash
 docker ps | grep glue-pyspark-poc
@@ -337,6 +350,7 @@ docker ps | grep glue-pyspark-poc
 **Problem**: `poetry: command not found` when running tests.
 
 **Solution**: Rebuild the container to ensure Poetry is installed.
+
 ```bash
 docker-compose build glue-pyspark
 docker-compose up -d glue-pyspark
@@ -347,6 +361,7 @@ docker-compose up -d glue-pyspark
 **Problem**: Tests fail with missing pytest or other dependencies.
 
 **Solution**: Install dependencies inside the container (first time setup).
+
 ```bash
 docker exec -it glue-pyspark-poc bash
 cd /app
@@ -359,6 +374,7 @@ exit
 **Problem**: SparkSession initialization fails with memory errors.
 
 **Solution**: Reduce parallelism in `conftest.py` or increase Docker memory allocation.
+
 ```python
 # In conftest.py
 .config("spark.sql.shuffle.partitions", "1")
@@ -370,6 +386,7 @@ exit
 **Problem**: Cannot write coverage files.
 
 **Solution**: Clean artifacts and run again.
+
 ```bash
 ./scripts/run-tests-docker.bash clean
 ./scripts/run-tests-docker.bash all
@@ -380,6 +397,7 @@ exit
 **Problem**: Tests take too long with coverage enabled.
 
 **Solution**: Use fast mode to skip coverage collection.
+
 ```bash
 ./scripts/run-tests-docker.bash fast
 ```
@@ -396,6 +414,7 @@ exit
 ## Contributing
 
 When adding new tests:
+
 1. Follow the AAA pattern
 2. Use the naming convention: `test_should_X_when_Y`
 3. Add docstrings explaining the test purpose

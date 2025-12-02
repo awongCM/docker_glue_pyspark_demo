@@ -67,33 +67,43 @@ poetry run pytest --cov=plain --cov=purchase_order --cov-report=term-missing
 ## 🚨 Troubleshooting
 
 ### "ModuleNotFoundError: No module named 'awsglue'"
+
 ✅ **Solution**: Run tests inside the Docker container, not locally.
+
 ```bash
 ./scripts/run-tests-docker.bash all
 ```
 
 ### "Container 'glue-pyspark-poc' is not running"
+
 ✅ **Solution**: Start the containers first.
+
 ```bash
 ./scripts/start-containers.bash
 docker ps | grep glue-pyspark-poc
 ```
 
 ### "poetry: command not found" inside container
+
 ✅ **Solution**: The container should have Poetry pre-installed. Rebuild if needed.
+
 ```bash
 docker-compose build glue-pyspark
 docker-compose up -d glue-pyspark
 ```
 
 ### Tests are slow
+
 ✅ **Solution**: Use fast mode (skips coverage).
+
 ```bash
 ./scripts/run-tests-docker.bash fast
 ```
 
 ### Need to debug a specific test
+
 ✅ **Solution**: Open shell and run with verbose output.
+
 ```bash
 ./scripts/run-tests-docker.bash shell
 poetry run pytest tests/plain/test_bronze_job.py::TestBronzeJobLogging -vv -s
