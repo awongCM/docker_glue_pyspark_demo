@@ -49,6 +49,7 @@ def test_should_return_true_when_input_is_valid():
 - Mock external systems (I/O, network, AWS) using `pytest-mock`
 - Add docstrings to test functions
 - Add negative tests
+- Add integration tests for critical paths
 - Add edge cases
 
 ## Additional Rules
