@@ -166,7 +166,17 @@ jobs:
           echo "Checking for coverage files..."
           ls -la coverage.xml htmlcov/ || echo "Coverage files not found"
 
-      - name: Upload coverage reports
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=docker_glue_pyspark_demo
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+
+      - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
         if: always()
         with:
