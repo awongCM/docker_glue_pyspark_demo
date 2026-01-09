@@ -81,9 +81,9 @@ jobs:
           file: ./Dockerfile
           push: true
           load: false
-          tags: ghcr.io/${{ github.repository }}/glue-pyspark:latest
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/glue-pyspark:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/glue-pyspark:buildcache,mode=max
+          tags: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/glue-pyspark:latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/glue-pyspark:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/glue-pyspark:buildcache,mode=max
           outputs: type=oci,dest=/tmp/image.tar
 
       - name: Load Docker image from OCI
