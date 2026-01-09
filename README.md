@@ -68,3 +68,10 @@ The project follows the **medallion architecture** pattern:
 - **Gold** → Business-ready aggregated metrics
 
 Data flows from Kafka → S3 (Bronze) → Iceberg Tables (Silver) → DynamoDB (Gold)
+
+## Posible Enhancements
+
+- [] Add data quality checks with dbt/Great Expectations.
+- [] Implement unit tests and extend tests coverage for these.
+- [] Set up CI/CD pipelines using Github Actions for job deployment, unit test, peformance etc.
+- [] Explore Iceberg’s time travel capabilities, etc
