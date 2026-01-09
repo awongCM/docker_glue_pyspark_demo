@@ -22,10 +22,10 @@ jobs:
         ports:
           - 4566:4566
         options: >-
-          --health-cmd "awslocal s3 ls || exit 1"
+          --health-cmd "curl -f http://localhost:4566/_localstack/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
 
     steps:
       - name: Checkout code
@@ -60,17 +60,29 @@ jobs:
       - name: Wait for LocalStack to be ready
         run: |
           echo "Waiting for LocalStack to be ready..."
-          max_attempts=30
+          echo "Checking LocalStack health endpoint..."
+          max_attempts=60
           attempt=0
-          until curl -s http://localhost:4566/_localstack/health | grep -q '"s3": "available"' || [ $attempt -eq $max_attempts ]; do
+          until curl -f -s http://localhost:4566/_localstack/health | grep -q '"s3"' || [ $attempt -eq $max_attempts ]; do
             echo "Attempt $((++attempt))/$max_attempts: Waiting for LocalStack..."
+            if [ $((attempt % 10)) -eq 0 ]; then
+              echo "Health check response:"
+              curl -s http://localhost:4566/_localstack/health || echo "No response"
+            fi
             sleep 2
           done
           if [ $attempt -eq $max_attempts ]; then
-            echo "LocalStack failed to start"
+            echo "LocalStack failed to start after $max_attempts attempts"
+            echo "Final health check:"
+            curl -s http://localhost:4566/_localstack/health || echo "No response"
+            echo "Docker containers:"
+            docker ps -a
+            echo "LocalStack logs:"
+            docker logs $(docker ps -q -f ancestor=localstack/localstack:latest) || echo "No logs available"
             exit 1
           fi
           echo "LocalStack is ready!"
+          curl -s http://localhost:4566/_localstack/health | jq . || true
 
       - name: Configure AWS resources in LocalStack
         run: |
