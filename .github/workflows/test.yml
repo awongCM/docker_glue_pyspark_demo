@@ -35,27 +35,61 @@ jobs:
         run: |
           echo "Disk space before cleanup:"
           df -h
+
+          # Remove unnecessary tools and SDKs
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /usr/local/share/boost
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo docker system prune -af --volumes
+
+          # Clean apt package manager
+          sudo apt-get clean
+          sudo apt-get autoclean
+          sudo apt-get autoremove -y
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/cache/apt/archives/*
+
+          # Clean pip cache
+          sudo rm -rf ~/.cache/pip
+
+          # Clean temporary files
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /var/log/*
+
+          # Aggressive Docker cleanup
+          docker system prune -af --volumes
+          docker builder prune -af
+
           echo "Disk space after cleanup:"
           df -h
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Glue PySpark Docker image
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Glue PySpark Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          push: false
-          load: true
-          tags: my-glue-pyspark:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          push: true
+          load: false
+          tags: ghcr.io/${{ github.repository }}/glue-pyspark:latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/glue-pyspark:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/glue-pyspark:buildcache,mode=max
+          outputs: type=oci,dest=/tmp/image.tar
+
+      - name: Load Docker image from OCI
+        run: |
+          docker load --input /tmp/image.tar
+          docker tag $(docker image ls --quiet | head -1) my-glue-pyspark:latest
 
       - name: Wait for LocalStack to be ready
         run: |
