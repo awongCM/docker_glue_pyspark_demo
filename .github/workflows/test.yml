@@ -153,17 +153,17 @@ jobs:
             -v ${{ github.workspace }}/purchase_order:/app/purchase_order \
             -v ${{ github.workspace }}/tests:/app/tests \
             -v ${{ github.workspace }}/pytest.ini:/app/pytest.ini \
+            -v ${{ github.workspace }}:/output \
             -e AWS_ACCESS_KEY_ID=test \
             -e AWS_SECRET_ACCESS_KEY=test \
             -e AWS_REGION=us-east-1 \
             my-glue-pyspark:latest \
-            "poetry run pytest tests/ --cov=plain --cov=purchase_order --cov-report=term-missing --cov-report=xml --cov-report=html -v"
+            "poetry run pytest tests/ --cov=plain --cov=purchase_order --cov-report=term-missing --cov-report=xml:/output/coverage.xml --cov-report=html:/output/htmlcov -v"
 
-      - name: Copy coverage reports from container
+      - name: Verify coverage reports
         if: always()
         run: |
-          # Coverage files are generated inside the container's /app directory
-          # They should already be in the workspace due to volume mounts
+          echo "Checking for coverage files..."
           ls -la coverage.xml htmlcov/ || echo "Coverage files not found"
 
       - name: Upload coverage reports
