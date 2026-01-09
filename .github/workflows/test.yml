@@ -2,14 +2,14 @@ name: Run Tests with LocalStack
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
   test:
-    runs-on: ubuntu-22.04
-    
+    runs-on: ubuntu-latest
+
     services:
       localstack:
         image: localstack/localstack:latest
@@ -28,107 +28,133 @@ jobs:
           --health-retries 5
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python 3.10.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10.11'
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Install Java (required for PySpark)
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '11'
+      - name: Build Glue PySpark Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: my-glue-pyspark:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        version: latest
-        virtualenvs-create: true
-        virtualenvs-in-project: true
+      - name: Wait for LocalStack to be ready
+        run: |
+          echo "Waiting for LocalStack to be ready..."
+          max_attempts=30
+          attempt=0
+          until curl -s http://localhost:4566/_localstack/health | grep -q '"s3": "available"' || [ $attempt -eq $max_attempts ]; do
+            echo "Attempt $((++attempt))/$max_attempts: Waiting for LocalStack..."
+            sleep 2
+          done
+          if [ $attempt -eq $max_attempts ]; then
+            echo "LocalStack failed to start"
+            exit 1
+          fi
+          echo "LocalStack is ready!"
 
-    - name: Cache Poetry dependencies
-      uses: actions/cache@v3
-      with:
-        path: .venv
-        key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
-        restore-keys: |
-          venv-${{ runner.os }}-
+      - name: Configure AWS resources in LocalStack
+        run: |
+          docker run --rm \
+            --network host \
+            -e AWS_ACCESS_KEY_ID=test \
+            -e AWS_SECRET_ACCESS_KEY=test \
+            -e AWS_REGION=us-east-1 \
+            amazon/aws-cli:latest \
+            --endpoint-url=http://localhost:4566 s3 mb s3://bronze-bucket || true
 
-    - name: Install dependencies
-      run: |
-        poetry install --no-interaction --no-ansi
+          docker run --rm \
+            --network host \
+            -e AWS_ACCESS_KEY_ID=test \
+            -e AWS_SECRET_ACCESS_KEY=test \
+            -e AWS_REGION=us-east-1 \
+            amazon/aws-cli:latest \
+            --endpoint-url=http://localhost:4566 s3 mb s3://iceberg || true
 
-    - name: Wait for LocalStack to be ready
-      run: |
-        echo "Waiting for LocalStack to be ready..."
-        max_attempts=30
-        attempt=0
-        until curl -s http://localhost:4566/_localstack/health | grep -q '"s3": "available"' || [ $attempt -eq $max_attempts ]; do
-          echo "Attempt $((++attempt))/$max_attempts: Waiting for LocalStack..."
-          sleep 2
-        done
-        if [ $attempt -eq $max_attempts ]; then
-          echo "LocalStack failed to start"
-          exit 1
-        fi
-        echo "LocalStack is ready!"
+          docker run --rm \
+            --network host \
+            -e AWS_ACCESS_KEY_ID=test \
+            -e AWS_SECRET_ACCESS_KEY=test \
+            -e AWS_REGION=us-east-1 \
+            amazon/aws-cli:latest \
+            --endpoint-url=http://localhost:4566 dynamodb create-table \
+            --table-name gold_table_plain \
+            --attribute-definitions AttributeName=id,AttributeType=N \
+            --key-schema AttributeName=id,KeyType=HASH \
+            --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 || true
 
-    - name: Configure AWS CLI for LocalStack
-      run: |
-        pip install awscli-local[ver1]
-        awslocal s3 mb s3://bronze-bucket || true
-        awslocal s3 mb s3://iceberg || true
-        awslocal dynamodb create-table \
-          --table-name gold_table_plain \
-          --attribute-definitions AttributeName=id,AttributeType=N \
-          --key-schema AttributeName=id,KeyType=HASH \
-          --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 || true
-        awslocal dynamodb create-table \
-          --table-name gold_table_po \
-          --attribute-definitions AttributeName=id,AttributeType=N \
-          --key-schema AttributeName=id,KeyType=HASH \
-          --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 || true
-        awslocal logs create-log-group --log-group-name /aws/glue/jobs/pyspark-logs || true
-        awslocal logs create-log-stream \
-          --log-group-name /aws/glue/jobs/pyspark-logs \
-          --log-stream-name plain-bronze || true
-        awslocal logs create-log-stream \
-          --log-group-name /aws/glue/jobs/pyspark-logs \
-          --log-stream-name po-bronze || true
+          docker run --rm \
+            --network host \
+            -e AWS_ACCESS_KEY_ID=test \
+            -e AWS_SECRET_ACCESS_KEY=test \
+            -e AWS_REGION=us-east-1 \
+            amazon/aws-cli:latest \
+            --endpoint-url=http://localhost:4566 dynamodb create-table \
+            --table-name gold_table_po \
+            --attribute-definitions AttributeName=id,AttributeType=N \
+            --key-schema AttributeName=id,KeyType=HASH \
+            --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 || true
 
-    - name: Set AWS environment variables
-      run: |
-        echo "AWS_ACCESS_KEY_ID=test" >> $GITHUB_ENV
-        echo "AWS_SECRET_ACCESS_KEY=test" >> $GITHUB_ENV
-        echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
-        echo "AWS_DEFAULT_REGION=us-east-1" >> $GITHUB_ENV
+          docker run --rm \
+            --network host \
+            -e AWS_ACCESS_KEY_ID=test \
+            -e AWS_SECRET_ACCESS_KEY=test \
+            -e AWS_REGION=us-east-1 \
+            amazon/aws-cli:latest \
+            --endpoint-url=http://localhost:4566 logs create-log-group \
+            --log-group-name /aws/glue/jobs/pyspark-logs || true
 
-    - name: Run tests with coverage
-      run: |
-        poetry run pytest tests/ \
-          --cov=plain \
-          --cov=purchase_order \
-          --cov-report=term-missing \
-          --cov-report=xml \
-          --cov-report=html \
-          -v
+          docker run --rm \
+            --network host \
+            -e AWS_ACCESS_KEY_ID=test \
+            -e AWS_SECRET_ACCESS_KEY=test \
+            -e AWS_REGION=us-east-1 \
+            amazon/aws-cli:latest \
+            --endpoint-url=http://localhost:4566 logs create-log-stream \
+            --log-group-name /aws/glue/jobs/pyspark-logs \
+            --log-stream-name plain-bronze || true
 
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v4
-      if: always()
-      with:
-        files: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
+      - name: Run tests inside Glue container
+        run: |
+          docker run --rm \
+            --network host \
+            -v ${{ github.workspace }}/plain:/app/plain \
+            -v ${{ github.workspace }}/purchase_order:/app/purchase_order \
+            -v ${{ github.workspace }}/tests:/app/tests \
+            -v ${{ github.workspace }}/pytest.ini:/app/pytest.ini \
+            -e AWS_ACCESS_KEY_ID=test \
+            -e AWS_SECRET_ACCESS_KEY=test \
+            -e AWS_REGION=us-east-1 \
+            my-glue-pyspark:latest \
+            "poetry run pytest tests/ --cov=plain --cov=purchase_order --cov-report=term-missing --cov-report=xml --cov-report=html -v"
 
-    - name: Upload coverage HTML report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: coverage-report
-        path: htmlcov/
-        retention-days: 7
+      - name: Copy coverage reports from container
+        if: always()
+        run: |
+          # Coverage files are generated inside the container's /app directory
+          # They should already be in the workspace due to volume mounts
+          ls -la coverage.xml htmlcov/ || echo "Coverage files not found"
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: htmlcov/
+          retention-days: 7
