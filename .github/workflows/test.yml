@@ -92,16 +92,14 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          load: false
           tags: ghcr.io/${{ steps.repo.outputs.owner }}/${{ steps.repo.outputs.name }}/glue-pyspark:latest
           cache-from: type=registry,ref=ghcr.io/${{ steps.repo.outputs.owner }}/${{ steps.repo.outputs.name }}/glue-pyspark:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ steps.repo.outputs.owner }}/${{ steps.repo.outputs.name }}/glue-pyspark:buildcache,mode=max
-          outputs: type=oci,dest=/tmp/image.tar
 
-      - name: Load Docker image from OCI
+      - name: Pull and tag image locally
         run: |
-          docker load --input /tmp/image.tar
-          docker tag $(docker image ls --quiet | head -1) my-glue-pyspark:latest
+          docker pull ghcr.io/${{ steps.repo.outputs.owner }}/${{ steps.repo.outputs.name }}/glue-pyspark:latest
+          docker tag ghcr.io/${{ steps.repo.outputs.owner }}/${{ steps.repo.outputs.name }}/glue-pyspark:latest my-glue-pyspark:latest
 
       - name: Wait for LocalStack to be ready
         run: |
