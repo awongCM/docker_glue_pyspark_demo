@@ -1,0 +1,381 @@
+name: Deploy to AWS with OIDC(TODO)
+
+on:
+    push:
+        branches:
+            - main
+        #   - develop
+    pull_request:
+        branches:
+            - main
+    workflow_dispatch:
+
+env:
+    AWS_REGION: us-east-1
+    TERRAFORM_VERSION: 1.5.0
+    PYTHON_VERSION: "3.10"
+
+# Required for OIDC authentication
+permissions:
+    id-token: write # Required for requesting JWT from GitHub OIDC provider
+    contents: read # Required for actions/checkout
+
+jobs:
+    # Job 1: Validate and build Poetry artifacts
+    build-artifacts:
+        name: Build Poetry Artifacts
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ env.PYTHON_VERSION }}
+
+            - name: Install Poetry
+              uses: snok/install-poetry@v1
+              with:
+                  version: latest
+                  virtualenvs-create: true
+                  virtualenvs-in-project: true
+
+            - name: Load cached venv
+              id: cached-poetry-dependencies
+              uses: actions/cache@v3
+              with:
+                  path: .venv
+                  key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+            - name: Install dependencies
+              if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+              run: poetry install --no-interaction --no-root
+
+            - name: Build Poetry package
+              run: |
+                  poetry build
+                  ls -la dist/
+
+            - name: Upload build artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: poetry-dist
+                  path: dist/
+                  retention-days: 5
+
+    # Job 2: Deploy Infrastructure with Terraform
+    terraform-deploy:
+        name: Terraform Deploy
+        runs-on: ubuntu-latest
+        needs: build-artifacts
+        outputs:
+            bronze_bucket: ${{ steps.terraform-output.outputs.bronze_bucket }}
+            silver_bucket: ${{ steps.terraform-output.outputs.silver_bucket }}
+            gold_table: ${{ steps.terraform-output.outputs.gold_table }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Configure AWS Credentials using OIDC
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+                  role-session-name: GitHubActions-TerraformDeploy
+                  aws-region: ${{ env.AWS_REGION }}
+
+            - name: Verify AWS Identity
+              run: |
+                  echo "Verifying AWS credentials..."
+                  aws sts get-caller-identity
+                  echo "AWS Account: $(aws sts get-caller-identity --query Account --output text)"
+                  echo "AWS User/Role: $(aws sts get-caller-identity --query Arn --output text)"
+
+            - name: Setup Terraform
+              uses: hashicorp/setup-terraform@v3
+              with:
+                  terraform_version: ${{ env.TERRAFORM_VERSION }}
+                  terraform_wrapper: false
+
+            - name: Terraform Format Check
+              working-directory: ./terraform
+              run: terraform fmt -check -recursive
+              continue-on-error: true
+
+            - name: Terraform Init
+              working-directory: ./terraform
+              run: |
+                  terraform init \
+                    -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
+                    -backend-config="key=glue-pyspark-demo/terraform.tfstate" \
+                    -backend-config="region=${{ env.AWS_REGION }}"
+
+            - name: Terraform Validate
+              working-directory: ./terraform
+              run: terraform validate
+
+            - name: Terraform Plan
+              working-directory: ./terraform
+              run: terraform plan -out=tfplan
+
+            - name: Terraform Apply
+              if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+              working-directory: ./terraform
+              run: terraform apply -auto-approve tfplan
+
+            - name: Terraform Output
+              if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+              id: terraform-output
+              working-directory: ./terraform
+              run: |
+                  echo "bronze_bucket=$(terraform output -raw bronze_bucket_name || echo 'bronze-bucket')" >> $GITHUB_OUTPUT
+                  echo "silver_bucket=$(terraform output -raw iceberg_bucket_name || echo 'iceberg')" >> $GITHUB_OUTPUT
+                  echo "gold_table=$(terraform output -raw gold_table_name || echo 'gold_table_plain')" >> $GITHUB_OUTPUT
+
+    # Job 3: Upload Poetry artifacts to S3
+    upload-artifacts-to-s3:
+        name: Upload Artifacts to S3
+        runs-on: ubuntu-latest
+        needs: [build-artifacts, terraform-deploy]
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        steps:
+            - name: Download build artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  name: poetry-dist
+                  path: dist/
+
+            - name: Configure AWS Credentials using OIDC
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+                  role-session-name: GitHubActions-S3Upload
+                  aws-region: ${{ env.AWS_REGION }}
+
+            - name: Upload Poetry packages to S3
+              run: |
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  S3_BUCKET="${{ secrets.ARTIFACTS_BUCKET }}"
+
+                  echo "Uploading Python packages to s3://${S3_BUCKET}/artifacts/${TIMESTAMP}/"
+
+                  # Upload wheel and tar.gz files
+                  for file in dist/*; do
+                    echo "Uploading $file..."
+                    aws s3 cp "$file" "s3://${S3_BUCKET}/artifacts/${TIMESTAMP}/" \
+                      --metadata "git-commit=${{ github.sha }},git-branch=${{ github.ref_name }},build-time=${TIMESTAMP}"
+                  done
+
+                  # Create a latest marker
+                  echo "${{ github.sha }}" > latest.txt
+                  aws s3 cp latest.txt "s3://${S3_BUCKET}/artifacts/latest.txt"
+
+                  echo "✅ Artifacts uploaded successfully!"
+                  aws s3 ls "s3://${S3_BUCKET}/artifacts/${TIMESTAMP}/"
+
+    # Job 4: Deploy Glue Jobs
+    deploy-glue-jobs:
+        name: Deploy AWS Glue Jobs
+        runs-on: ubuntu-latest
+        needs: [terraform-deploy, upload-artifacts-to-s3]
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        strategy:
+            matrix:
+                job:
+                    - name: plain-bronze-job
+                      script: plain/bronze_job.py
+                      description: "Bronze layer - ingest from Kafka to S3"
+                    - name: plain-silver-job
+                      script: plain/silver_job.py
+                      description: "Silver layer - transform S3 Parquet to Iceberg"
+                    - name: plain-gold-job
+                      script: plain/gold_job.py
+                      description: "Gold layer - aggregate Iceberg to DynamoDB"
+                    - name: po-bronze-job
+                      script: purchase_order/bronze_job.py
+                      description: "Purchase Order Bronze - Kafka to S3"
+                    - name: po-silver-job
+                      script: purchase_order/silver_job.py
+                      description: "Purchase Order Silver - S3 to Iceberg"
+                    - name: po-gold-job
+                      script: purchase_order/gold_job.py
+                      description: "Purchase Order Gold - Iceberg to DynamoDB"
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Configure AWS Credentials using OIDC
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+                  role-session-name: GitHubActions-GlueJobDeploy
+                  aws-region: ${{ env.AWS_REGION }}
+
+            - name: Upload Glue Job Script to S3
+              run: |
+                  S3_SCRIPTS_BUCKET="${{ secrets.GLUE_SCRIPTS_BUCKET }}"
+                  SCRIPT_PATH="${{ matrix.job.script }}"
+                  JOB_NAME="${{ matrix.job.name }}"
+
+                  echo "Uploading $SCRIPT_PATH to S3..."
+                  aws s3 cp "$SCRIPT_PATH" "s3://${S3_SCRIPTS_BUCKET}/scripts/${JOB_NAME}.py" \
+                    --metadata "git-commit=${{ github.sha }},updated-at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+            - name: Create or Update Glue Job
+              run: |
+                  JOB_NAME="${{ matrix.job.name }}"
+                  SCRIPT_LOCATION="s3://${{ secrets.GLUE_SCRIPTS_BUCKET }}/scripts/${JOB_NAME}.py"
+                  ROLE_ARN="${{ secrets.GLUE_EXECUTION_ROLE_ARN }}"
+
+                  echo "Checking if Glue job ${JOB_NAME} exists..."
+
+                  if aws glue get-job --job-name "${JOB_NAME}" 2>/dev/null; then
+                    echo "Updating existing Glue job: ${JOB_NAME}"
+                    aws glue update-job \
+                      --job-name "${JOB_NAME}" \
+                      --job-update '{
+                        "Description": "${{ matrix.job.description }}",
+                        "Role": "'"${ROLE_ARN}"'",
+                        "ExecutionProperty": {
+                          "MaxConcurrentRuns": 1
+                        },
+                        "Command": {
+                          "Name": "glueetl",
+                          "ScriptLocation": "'"${SCRIPT_LOCATION}"'",
+                          "PythonVersion": "3"
+                        },
+                        "DefaultArguments": {
+                          "--job-language": "python",
+                          "--enable-metrics": "true",
+                          "--enable-continuous-cloudwatch-log": "true",
+                          "--enable-spark-ui": "true",
+                          "--spark-event-logs-path": "s3://${{ secrets.GLUE_SCRIPTS_BUCKET }}/spark-logs/",
+                          "--TempDir": "s3://${{ secrets.GLUE_SCRIPTS_BUCKET }}/temp/",
+                          "--extra-py-files": "s3://${{ secrets.ARTIFACTS_BUCKET }}/artifacts/latest/",
+                          "--git-commit": "${{ github.sha }}",
+                          "--git-branch": "${{ github.ref_name }}"
+                        },
+                        "MaxRetries": 0,
+                        "Timeout": 60,
+                        "GlueVersion": "5.0",
+                        "NumberOfWorkers": 2,
+                        "WorkerType": "G.1X"
+                      }'
+                    echo "✅ Glue job ${JOB_NAME} updated successfully!"
+                  else
+                    echo "Creating new Glue job: ${JOB_NAME}"
+                    aws glue create-job \
+                      --name "${JOB_NAME}" \
+                      --description "${{ matrix.job.description }}" \
+                      --role "${ROLE_ARN}" \
+                      --execution-property MaxConcurrentRuns=1 \
+                      --command Name=glueetl,ScriptLocation="${SCRIPT_LOCATION}",PythonVersion=3 \
+                      --default-arguments '{
+                        "--job-language": "python",
+                        "--enable-metrics": "true",
+                        "--enable-continuous-cloudwatch-log": "true",
+                        "--enable-spark-ui": "true",
+                        "--spark-event-logs-path": "s3://${{ secrets.GLUE_SCRIPTS_BUCKET }}/spark-logs/",
+                        "--TempDir": "s3://${{ secrets.GLUE_SCRIPTS_BUCKET }}/temp/",
+                        "--extra-py-files": "s3://${{ secrets.ARTIFACTS_BUCKET }}/artifacts/latest/",
+                        "--git-commit": "${{ github.sha }}",
+                        "--git-branch": "${{ github.ref_name }}"
+                      }' \
+                      --max-retries 0 \
+                      --timeout 60 \
+                      --glue-version "5.0" \
+                      --number-of-workers 2 \
+                      --worker-type "G.1X" \
+                      --tags "Environment=production,ManagedBy=github-actions,Repository=${{ github.repository }},Commit=${{ github.sha }}"
+                    echo "✅ Glue job ${JOB_NAME} created successfully!"
+                  fi
+
+            - name: Test Glue Job (Optional)
+              if: github.event_name == 'workflow_dispatch'
+              run: |
+                  JOB_NAME="${{ matrix.job.name }}"
+                  echo "Starting test run of Glue job: ${JOB_NAME}"
+
+                  RUN_ID=$(aws glue start-job-run \
+                    --job-name "${JOB_NAME}" \
+                    --arguments '{"--test-mode": "true"}' \
+                    --query 'JobRunId' \
+                    --output text)
+
+                  echo "Job run started with ID: ${RUN_ID}"
+                  echo "Monitor at: https://console.aws.amazon.com/glue/home?region=${{ env.AWS_REGION }}#/v2/etl-jobs/view/${JOB_NAME}"
+
+    # Job 5: Verification and Smoke Tests
+    verify-deployment:
+        name: Verify Deployment
+        runs-on: ubuntu-latest
+        needs: [deploy-glue-jobs]
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        steps:
+            - name: Configure AWS Credentials using OIDC
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+                  role-session-name: GitHubActions-Verification
+                  aws-region: ${{ env.AWS_REGION }}
+
+            - name: Verify S3 Buckets
+              run: |
+                  echo "Verifying S3 buckets..."
+                  BUCKETS=("${{ secrets.ARTIFACTS_BUCKET }}" "${{ secrets.GLUE_SCRIPTS_BUCKET }}")
+
+                  for bucket in "${BUCKETS[@]}"; do
+                    if aws s3 ls "s3://${bucket}" > /dev/null 2>&1; then
+                      echo "✅ Bucket ${bucket} exists and is accessible"
+                      echo "Contents:"
+                      aws s3 ls "s3://${bucket}/" --recursive --human-readable --summarize | tail -n 2
+                    else
+                      echo "❌ Bucket ${bucket} not accessible"
+                      exit 1
+                    fi
+                  done
+
+            - name: Verify Glue Jobs
+              run: |
+                  echo "Verifying Glue jobs..."
+                  JOBS=("plain-bronze-job" "plain-silver-job" "plain-gold-job" "po-bronze-job" "po-silver-job" "po-gold-job")
+
+                  for job in "${JOBS[@]}"; do
+                    if aws glue get-job --job-name "${job}" > /dev/null 2>&1; then
+                      echo "✅ Glue job ${job} exists"
+                      STATUS=$(aws glue get-job --job-name "${job}" --query 'Job.Command.ScriptLocation' --output text)
+                      echo "   Script location: ${STATUS}"
+                    else
+                      echo "❌ Glue job ${job} not found"
+                      exit 1
+                    fi
+                  done
+
+            - name: Verify DynamoDB Tables
+              run: |
+                  echo "Verifying DynamoDB tables..."
+                  TABLES=("gold_table_plain" "gold_table_po")
+
+                  for table in "${TABLES[@]}"; do
+                    if aws dynamodb describe-table --table-name "${table}" > /dev/null 2>&1; then
+                      echo "✅ DynamoDB table ${table} exists"
+                      ITEM_COUNT=$(aws dynamodb describe-table --table-name "${table}" --query 'Table.ItemCount' --output text)
+                      echo "   Item count: ${ITEM_COUNT}"
+                    else
+                      echo "⚠️  DynamoDB table ${table} not found (may not exist yet)"
+                    fi
+                  done
+
+            - name: Deployment Summary
+              run: |
+                  echo "================================================"
+                  echo "🚀 Deployment Summary"
+                  echo "================================================"
+                  echo "Git Commit: ${{ github.sha }}"
+                  echo "Git Branch: ${{ github.ref_name }}"
+                  echo "AWS Region: ${{ env.AWS_REGION }}"
+                  echo "Deployed by: ${{ github.actor }}"
+                  echo "Deployment Time: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                  echo "================================================"
+                  echo "✅ All deployment steps completed successfully!"
+                  echo "================================================"

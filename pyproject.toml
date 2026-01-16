@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "A PySpark and AWS Glue project with Kafka, Iceberg, and LocalStack"
 authors = ["Andy Wong <awong.cm@gmail.com>"]
 package-mode = true
+packages = [{ include = "plain" }, { include = "purchase_order" }]
 
 [tool.poetry.dependencies]
 python = "3.10.2"
