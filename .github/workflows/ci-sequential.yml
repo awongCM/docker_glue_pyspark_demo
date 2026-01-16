@@ -1,0 +1,268 @@
+name: Run Tests with LocalStack, Build Docker Image, and Upload Coverage (Sequential)
+
+on:
+    push:
+        branches: [main, develop]
+    pull_request:
+        branches: [main, develop]
+
+permissions:
+    contents: read
+    packages: write
+
+jobs:
+    build-image:
+        runs-on: ubuntu-latest
+        outputs:
+            owner: ${{ steps.repo.outputs.owner }}
+            name: ${{ steps.repo.outputs.name }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Convert repository owner to lowercase
+              id: repo
+              run: |
+                  REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+                  REPO_NAME_LOWER=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
+                  echo "owner=$REPO_OWNER_LOWER" >> $GITHUB_OUTPUT
+                  echo "name=$REPO_NAME_LOWER" >> $GITHUB_OUTPUT
+
+            - name: Log in to GitHub Container Registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Build and push Glue PySpark Docker image
+              uses: docker/build-push-action@v5
+              with:
+                  context: .
+                  file: ./Dockerfile
+                  push: true
+                  tags: ghcr.io/${{ steps.repo.outputs.owner }}/${{ steps.repo.outputs.name }}/glue-pyspark:latest
+                  cache-from: type=registry,ref=ghcr.io/${{ steps.repo.outputs.owner }}/${{ steps.repo.outputs.name }}/glue-pyspark:buildcache
+                  cache-to: type=registry,ref=ghcr.io/${{ steps.repo.outputs.owner }}/${{ steps.repo.outputs.name }}/glue-pyspark:buildcache,mode=max
+
+    pull-and-tag:
+        needs: build-image
+        runs-on: ubuntu-latest
+        steps:
+            - name: Pull and tag image locally
+              run: |
+                  docker pull ghcr.io/${{ needs.build-image.outputs.owner }}/${{ needs.build-image.outputs.name }}/glue-pyspark:latest || true
+                  docker tag ghcr.io/${{ needs.build-image.outputs.owner }}/${{ needs.build-image.outputs.name }}/glue-pyspark:latest my-glue-pyspark:latest || true
+
+    wait-localstack:
+        needs: pull-and-tag
+        runs-on: ubuntu-latest
+        services:
+            localstack:
+                image: localstack/localstack:latest
+                env:
+                    SERVICES: dynamodb,s3,cloudwatch,logs,iam,sts
+                    DEFAULT_REGION: us-east-1
+                    AWS_ACCESS_KEY_ID: test
+                    AWS_SECRET_ACCESS_KEY: test
+                    DEBUG: 1
+                ports:
+                    - 4566:4566
+                options: >-
+                    --health-cmd "curl -f http://localhost:4566/_localstack/health || exit 1"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 10
+        steps:
+            - name: Wait for LocalStack to be ready
+              run: |
+                  echo "Waiting for LocalStack to be ready..."
+                  max_attempts=60
+                  attempt=0
+                  until curl -f -s http://localhost:4566/_localstack/health | grep -q '"s3"' || [ $attempt -eq $max_attempts ]; do
+                    echo "Attempt $((++attempt))/$max_attempts: Waiting for LocalStack..."
+                    if [ $((attempt % 10)) -eq 0 ]; then
+                      echo "Health check response:"
+                      curl -s http://localhost:4566/_localstack/health || echo "No response"
+                    fi
+                    sleep 2
+                  done
+                  if [ $attempt -eq $max_attempts ]; then
+                    echo "LocalStack failed to start after $max_attempts attempts"
+                    echo "Final health check:"
+                    curl -s http://localhost:4566/_localstack/health || echo "No response"
+                    echo "Docker containers:"
+                    docker ps -a
+                    echo "LocalStack logs:"
+                    docker logs $(docker ps -q -f ancestor=localstack/localstack:latest) || echo "No logs available"
+                    exit 1
+                  fi
+                  echo "LocalStack is ready!"
+                  curl -s http://localhost:4566/_localstack/health | jq . || true
+
+    configure-aws:
+        needs: wait-localstack
+        runs-on: ubuntu-latest
+        services:
+            localstack:
+                image: localstack/localstack:latest
+                env:
+                    SERVICES: dynamodb,s3,cloudwatch,logs,iam,sts
+                    DEFAULT_REGION: us-east-1
+                    AWS_ACCESS_KEY_ID: test
+                    AWS_SECRET_ACCESS_KEY: test
+                    DEBUG: 1
+                ports:
+                    - 4566:4566
+                options: >-
+                    --health-cmd "curl -f http://localhost:4566/_localstack/health || exit 1"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 10
+        steps:
+            - name: Configure AWS resources in LocalStack
+              run: |
+                  docker run --rm \
+                    --network host \
+                    -e AWS_ACCESS_KEY_ID=test \
+                    -e AWS_SECRET_ACCESS_KEY=test \
+                    -e AWS_REGION=us-east-1 \
+                    amazon/aws-cli:latest \
+                    --endpoint-url=http://localhost:4566 s3 mb s3://bronze-bucket || true
+
+                  docker run --rm \
+                    --network host \
+                    -e AWS_ACCESS_KEY_ID=test \
+                    -e AWS_SECRET_ACCESS_KEY=test \
+                    -e AWS_REGION=us-east-1 \
+                    amazon/aws-cli:latest \
+                    --endpoint-url=http://localhost:4566 s3 mb s3://iceberg || true
+
+                  docker run --rm \
+                    --network host \
+                    -e AWS_ACCESS_KEY_ID=test \
+                    -e AWS_SECRET_ACCESS_KEY=test \
+                    -e AWS_REGION=us-east-1 \
+                    amazon/aws-cli:latest \
+                    --endpoint-url=http://localhost:4566 dynamodb create-table \
+                    --table-name gold_table_plain \
+                    --attribute-definitions AttributeName=id,AttributeType=N \
+                    --key-schema AttributeName=id,KeyType=HASH \
+                    --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 || true
+
+                  docker run --rm \
+                    --network host \
+                    -e AWS_ACCESS_KEY_ID=test \
+                    -e AWS_SECRET_ACCESS_KEY=test \
+                    -e AWS_REGION=us-east-1 \
+                    amazon/aws-cli:latest \
+                    --endpoint-url=http://localhost:4566 dynamodb create-table \
+                    --table-name gold_table_po \
+                    --attribute-definitions AttributeName=id,AttributeType=N \
+                    --key-schema AttributeName=id,KeyType=HASH \
+                    --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 || true
+
+                  docker run --rm \
+                    --network host \
+                    -e AWS_ACCESS_KEY_ID=test \
+                    -e AWS_SECRET_ACCESS_KEY=test \
+                    -e AWS_REGION=us-east-1 \
+                    amazon/aws-cli:latest \
+                    --endpoint-url=http://localhost:4566 logs create-log-group \
+                    --log-group-name /aws/glue/jobs/pyspark-logs || true
+
+                  docker run --rm \
+                    --network host \
+                    -e AWS_ACCESS_KEY_ID=test \
+                    -e AWS_SECRET_ACCESS_KEY=test \
+                    -e AWS_REGION=us-east-1 \
+                    amazon/aws-cli:latest \
+                    --endpoint-url=http://localhost:4566 logs create-log-stream \
+                    --log-group-name /aws/glue/jobs/pyspark-logs \
+                    --log-stream-name plain-bronze || true
+
+    run-tests:
+        needs: configure-aws
+        runs-on: ubuntu-latest
+        services:
+            localstack:
+                image: localstack/localstack:latest
+                env:
+                    SERVICES: dynamodb,s3,cloudwatch,logs,iam,sts
+                    DEFAULT_REGION: us-east-1
+                    AWS_ACCESS_KEY_ID: test
+                    AWS_SECRET_ACCESS_KEY: test
+                    DEBUG: 1
+                ports:
+                    - 4566:4566
+                options: >-
+                    --health-cmd "curl -f http://localhost:4566/_localstack/health || exit 1"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 10
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Run tests inside Glue container
+              run: |
+                  docker run --rm \
+                    --network host \
+                    -v ${{ github.workspace }}/plain:/app/plain \
+                    -v ${{ github.workspace }}/purchase_order:/app/purchase_order \
+                    -v ${{ github.workspace }}/tests:/app/tests \
+                    -v ${{ github.workspace }}/pytest.ini:/app/pytest.ini \
+                    -v ${{ github.workspace }}:/output \
+                    -e AWS_ACCESS_KEY_ID=test \
+                    -e AWS_SECRET_ACCESS_KEY=test \
+                    -e AWS_REGION=us-east-1 \
+                    my-glue-pyspark:latest \
+                    "poetry run pytest tests/ --cov=plain --cov=purchase_order --cov-report=term-missing --cov-report=xml:/output/coverage.xml --cov-report=html:/output/htmlcov -v"
+
+    verify-coverage:
+        needs: run-tests
+        runs-on: ubuntu-latest
+        steps:
+            - name: Verify coverage reports
+              if: always()
+              run: |
+                  echo "Checking for coverage files..."
+                  ls -la coverage.xml htmlcov/ || echo "Coverage files not found"
+
+    sonar-scan:
+        needs: verify-coverage
+        runs-on: ubuntu-latest
+        steps:
+            - name: SonarCloud Scan
+              uses: SonarSource/sonarcloud-github-action@master
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    upload-codecov:
+        needs: sonar-scan
+        runs-on: ubuntu-latest
+        steps:
+            - name: Upload coverage reports to Codecov
+              uses: codecov/codecov-action@v4
+              if: always()
+              with:
+                  files: ./coverage.xml
+                  flags: unittests
+                  name: codecov-umbrella
+                  fail_ci_if_error: false
+
+    upload-artifact:
+        needs: upload-codecov
+        runs-on: ubuntu-latest
+        steps:
+            - name: Upload coverage HTML report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: coverage-report
+                  path: htmlcov/
+                  retention-days: 7
