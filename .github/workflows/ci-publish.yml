@@ -247,7 +247,7 @@ jobs:
             - name: Set up Python 3.10
               uses: actions/setup-python@v5
               with:
-                  python-version: '3.10'
+                  python-version: "3.10"
 
             - name: Build and publish to TestPyPI
               uses: JRubics/poetry-publish@v1.17
@@ -267,7 +267,7 @@ jobs:
             - name: Set up Python 3.10
               uses: actions/setup-python@v5
               with:
-                  python-version: '3.10'
+                  python-version: "3.10"
 
             - name: Build and publish to PyPI
               uses: JRubics/poetry-publish@v1.17
