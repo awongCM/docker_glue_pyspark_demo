@@ -255,6 +255,7 @@ jobs:
                   pypi_token: ${{ secrets.TEST_PYPI_TOKEN }}
                   repository_name: testpypi
                   repository_url: https://test.pypi.org/legacy/
+                  python_version: "3.10"
 
     publish-to-pypi:
         needs: ci-pipeline
@@ -273,3 +274,4 @@ jobs:
               uses: JRubics/poetry-publish@v1.17
               with:
                   pypi_token: ${{ secrets.PYPI_TOKEN }}
+                  python_version: "3.10"
