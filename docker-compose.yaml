@@ -13,6 +13,7 @@ services:
       - ./purchase_order:/app/purchase_order
       - ./tests:/app/tests
       - ./scripts:/app/scripts
+      - ./learning:/app/learning
       - ./pytest.ini:/app/pytest.ini
       - ./pyproject.toml:/app/pyproject.toml
       - ./poetry.lock:/app/poetry.lock

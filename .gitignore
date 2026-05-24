@@ -22,3 +22,6 @@ __pycache__/
 .hypothesis/
 .vscode/
 dist/
+
+# Curriculum track logs
+learning/logs/
