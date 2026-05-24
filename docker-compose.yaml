@@ -64,7 +64,7 @@ services:
       - kafka-net
 
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack:4.12
     environment:
       - SERVICES=dynamodb,s3,cloudwatch,logs,iam,sts,lambda,glue
       - DEFAULT_REGION=us-east-1
