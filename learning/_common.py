@@ -13,10 +13,12 @@ def build_spark(app_name: str, shuffle_partitions: int = 4) -> SparkSession:
         .config("spark.sql.shuffle.partitions", str(shuffle_partitions))
         .config("spark.driver.memory", os.environ.get("TRACK_DRIVER_MEMORY", "512m"))
         .config("spark.ui.enabled", os.environ.get("TRACK_SPARK_UI", "true"))
+        .config("spark.ui.bindAddress", "0.0.0.0")
+        .config("spark.eventLog.enabled", "true")
+        .config("spark.eventLog.dir", "file:///tmp/spark-events")
     )
-    ui_port = os.environ.get("TRACK_UI_PORT")
-    if ui_port:
-        builder = builder.config("spark.ui.port", ui_port)
+    ui_port = os.environ.get("TRACK_UI_PORT", "4040")
+    builder = builder.config("spark.ui.port", ui_port)
     return builder.getOrCreate()
 
 

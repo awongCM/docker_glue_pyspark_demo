@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Launch all 4 PySpark curriculum tracks with staggered starts (avoids OOM on local[*]).
+# Launch all 4 PySpark curriculum tracks with staggered starts (avoids OOM on local[1]).
+# Each track uses 512m driver — on 8 GB RAM hosts, raise TRACK_STAGGER_SEC or run sequentially.
+# See learning/00_START_HERE.md § "Local RAM limits".
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -56,12 +58,13 @@ print_urls() {
   JupyterLab:     http://localhost:8888/     (token: test)
   Spark History:  http://localhost:18080/    (if history server enabled)
   LocalStack:     http://localhost:4566/
-  Live Spark UI:  http://localhost:4040/     (active app — only while a track runs)
+  Live Spark UI:  http://localhost:14040/    (active app — only while a track runs)
 
   Logs: ${LOG_DIR}/track_0{1,2,3,4}.log
   Tail all:  tail -f ${LOG_DIR}/track_*.log
 
   Recommended: staggered parallel (this script). Do NOT run 4× local[*] at once.
+  RAM limits: see learning/00_START_HERE.md § "Local RAM limits"
 
   Per-track observation guide → learning/00_START_HERE.md
 ================================================================================

@@ -19,6 +19,10 @@ services:
       - ./poetry.lock:/app/poetry.lock
     ports:
       - "18080:18080"
+      # Host 4040/4041 are often taken by SSH tunnels on macOS — use 14040/14041 instead
+      - "14040:4040"
+    command:
+      - /home/glue_user/spark/sbin/start-history-server.sh && exec sleep infinity
     environment:
       AWS_ACCESS_KEY_ID: "test"
       AWS_SECRET_ACCESS_KEY: "test"
@@ -56,6 +60,7 @@ services:
       ]
     ports:
       - 8888:8888
+      - 14041:4040
     depends_on:
       - glue-pyspark
     volumes_from:

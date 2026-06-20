@@ -25,3 +25,4 @@ dist/
 
 # Curriculum track logs
 learning/logs/
+*.log

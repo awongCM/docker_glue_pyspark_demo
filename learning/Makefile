@@ -1,4 +1,4 @@
-.PHONY: all tracks track1 track2 track3 track4 medallion logs
+.PHONY: all tracks track1 track2 track3 track4 track5 medallion logs
 
 CONTAINER ?= glue-pyspark-poc
 PY := docker exec $(CONTAINER) bash -lc 'cd /app/learning && TRACK_SPARK_MASTER=local[1] TRACK_DRIVER_MEMORY=512m poetry run python'
@@ -19,6 +19,10 @@ track3:
 
 track4:
 	$(PY) track_04_master.py
+
+# Track 05 runs solo with all cores + bigger heap via the dedicated runner.
+track5:
+	./learning/run_track05_million.sh
 
 medallion:
 	./learning/run_medallion_plain.sh
